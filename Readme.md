@@ -37,30 +37,26 @@ Instructions on how to package, upload, and configure a wallpaper management scr
 - **Uninstall command**: `powershell.exe -executionpolicy bypass -file uninstall.ps1`
 - **Install behavior**: System
 
-### Detection Rules
+    ### Detection Rules
+    
+    - **Rule type**: File
+    - **Path**: `%SystemRoot%\Web\Wallpaper`
+    - **File or folder**: The name of the folder where wallpapers are stored
+    - **Detection method**: File or folder exists
+    
+    ### Requirements
+    
+    - **Operating system architecture**: Select as per your target devices
+    - **Minimum operating system**: Windows 10 or later
+    
+    ### Return Codes
+    
+    - Add standard return codes as per your script's configuration.
+    
+    ## Assignments
+    
+    - Assign the app to the relevant user or device groups as per your organizational policies.
 
-- **Rule type**: File
-- **Path**: `%SystemRoot%\Web\Wallpaper`
-- **File or folder**: The name of the folder where wallpapers are stored
-- **Detection method**: File or folder exists
-
-### Requirements
-
-- **Operating system architecture**: Select as per your target devices
-- **Minimum operating system**: Windows 10 or later
-
-### Return Codes
-
-- Add standard return codes as per your script's configuration.
-
-## Assignments
-
-- Assign the app to the relevant user or device groups as per your organizational policies.
-
-## Version Control
-
-- **Version**: Ensure to increment this with each update to the script or wallpaper images.
-- **Date**: Add the creation or modification date to the script description for reference.
 
 ## Troubleshooting
 
