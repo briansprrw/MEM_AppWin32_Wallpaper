@@ -25,37 +25,42 @@ Instructions on how to package, upload, and configure a wallpaper management scr
 
 ## Configuring the App
 
+> :warning: **WARNING:** This is an example, modify as needed.
+
+> :memo: **Note:** Example instructions assumes you'll use "Nature" as parameter.
+
+
 ### General Information
 
 - **Name**: Wallpaper Management
 - **Description**: This app configures the desktop wallpaper for Intune-managed devices.
-- **Publisher**: [Maybe you might want to put your name here?]
+- **Publisher**: [You might want to put your name here?]
 
 ### Program
 
-- **Install command**: `powershell.exe -executionpolicy bypass -file install.ps1`
-- **Uninstall command**: `powershell.exe -executionpolicy bypass -file uninstall.ps1`
+- **Install command**: `powershell.exe -executionpolicy bypass -file ".\Install_Wallpaper.ps1" -theme "Nature"`
+- **Uninstall command**: `powershell.exe -executionpolicy bypass -file ".\Install_Wallpaper.ps1" -theme "Nature" -Uninstall`
 - **Install behavior**: System
 
-    ### Detection Rules
-    
-    - **Rule type**: File
-    - **Path**: `%SystemRoot%\Web\Wallpaper`
-    - **File or folder**: The name of the folder where wallpapers are stored
-    - **Detection method**: File or folder exists
-    
-    ### Requirements
-    
-    - **Operating system architecture**: Select as per your target devices
-    - **Minimum operating system**: Windows 10 or later
-    
-    ### Return Codes
-    
-    - Add standard return codes as per your script's configuration.
-    
-    ## Assignments
-    
-    - Assign the app to the relevant user or device groups as per your organizational policies.
+### Detection Rules
+
+- **Rule type**: File
+- **Path**: `%SystemRoot%\Web\Wallpaper`
+- **File or folder**: Nature
+- **Detection method**: File or folder exists
+
+### Requirements
+
+- **Operating system architecture**: Select as per your target devices
+- **Minimum operating system**: Windows 10 or later
+
+### Return Codes
+
+- The standard return codes.
+
+### Assignments
+- Assign the app to the relevant user or device groups as per your organizational policies.
+
 
 
 ## Troubleshooting
