@@ -1,6 +1,8 @@
 # Deploying Wallpaper Management with Microsoft Intune
 
-Instructions on how to package, upload, and configure a wallpaper management script as a Win32 app in Microsoft Intune. The script facilitates the setting of desktop wallpapers across Windows 10 and Windows 11 devices managed via Intune.
+Instructions on how to package, upload, and configure a wallpaper management script as a Win32 app in Microsoft Intune. The script only copies or deposits a folder with potential wallpaper images. To actually configure the Wallpaper for the user there would also need to be an Intune Configuration Profile wih the setting "Desktop Wallpaper (User)" configured.
+
+Below the instructions on how to package and distribute as Win32 App package.
 
 ## Prerequisites
 
