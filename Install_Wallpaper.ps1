@@ -189,3 +189,56 @@ try {
     Write-Error $_.Exception.Message
     exit 1
 }
+
+# Function to remove the wallpaper and theme directory
+function Remove-Wallpaper {
+    param (
+        [string]$theme # Name of the theme subdirectory
+    )
+
+    # Define the destination path
+    $destPath = Join-Path -Path $env.SystemRoot -ChildPath "Web\Wallpaper\$theme"
+
+    # Check if the destination directory exists
+    if (Test-Path -Path $destPath) {
+        try {
+            Remove-Item -Path $destPath -Recurse -Force
+            Write-Log "Theme '$theme' and all associated wallpapers have been removed."
+        } catch {
+            Write-Log "An error occurred while removing the theme: $_"
+            Write-Error "An error occurred while removing the theme: $_"
+            exit 1
+        }
+    } else {
+        Write-Log "Theme '$theme' does not exist or has already been removed."
+    }
+}
+
+# Main script execution (modified to handle Uninstall)
+try {
+    Write-Log "Starting wallpaper deployment script."
+
+    # Dynamically determine the theme name
+    $theme = Get-ThemeName
+
+    if ($Uninstall) {
+        # Uninstall: Remove the wallpaper and associated theme
+        Remove-Wallpaper -theme $theme
+        Set-EnvironmentVariable -variableName "WallpaperThemeVersion" -value ""
+        Write-Log "Uninstall completed."
+    } else {
+        # Install: Find and copy the wallpaper, apply it, and set the version environment variable
+        $wallpaperPath = Find-Wallpaper
+        $copiedWallpaperPath = Copy-Wallpaper -theme $theme -sourcePath $wallpaperPath
+        Apply-Wallpaper -wallpaperPath $copiedWallpaperPath
+        Set-EnvironmentVariable -variableName "WallpaperThemeVersion" -value $version
+        Write-Log "Install completed successfully."
+    }
+
+    # Exit with success
+    exit 0
+} catch {
+    Write-Log "An error occurred: $_"
+    Write-Error $_.Exception.Message
+    exit 1
+}
