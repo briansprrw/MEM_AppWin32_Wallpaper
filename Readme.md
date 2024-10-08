@@ -1,8 +1,7 @@
+
 # Deploying Wallpaper Management with Microsoft Intune
 
-Instructions on how to package, upload, and configure a wallpaper management script as a Win32 app in Microsoft Intune. The script only copies or deposits a folder with potential wallpaper images. To actually configure the Wallpaper for the user there would also need to be an Intune Configuration Profile wih the setting "Desktop Wallpaper (User)" configured.
-
-Below the instructions on how to package and distribute as Win32 App package.
+Instructions on how to package, upload, and configure a wallpaper management script as a Win32 app in Microsoft Intune. This script not only copies wallpaper images but also configures the wallpaper for the user and tracks the deployment version through an environment variable.
 
 ## Prerequisites
 
@@ -13,10 +12,13 @@ Below the instructions on how to package and distribute as Win32 App package.
 
 ## Packaging the Script
 
-1. Prepare your PowerShell script that copies the desired wallpaper images to the `%SystemRoot%\Web\Wallpaper` directory.
-2. Ensure the script includes parameters for install and uninstall actions.
-3. Download the [Microsoft Win32 Content Prep Tool](https://github.com/Microsoft/Microsoft-Win32-Content-Prep-Tool).
-4. Run the `IntuneWinAppUtil.exe` and follow the prompts to package your script and related files into an `.intunewin` file.
+1. Ensure the `Install_Wallpaper.ps1` PowerShell script is correctly prepared. The script will:
+   - Copy the wallpaper images to the `%SystemRoot%\Web\Wallpaper` directory.
+   - Apply the wallpaper using registry settings.
+   - Set an environment variable for version tracking (`WallpaperThemeVersion`).
+   - Log key actions to `log.txt`.
+2. Download the [Microsoft Win32 Content Prep Tool](https://github.com/Microsoft/Microsoft-Win32-Content-Prep-Tool).
+3. Run the `IntuneWinAppUtil.exe` and follow the prompts to package your script and related files (e.g., wallpapers) into an `.intunewin` file.
 
 ## Uploading to Intune
 
@@ -27,53 +29,50 @@ Below the instructions on how to package and distribute as Win32 App package.
 
 ## Configuring the App
 
-> :warning: **WARNING:** This is an example, modify as needed.
-
-> :memo: **Note:** Example instructions assumes you'll use "Nature" as parameter.
-
-
 ### General Information
 
 - **Name**: Wallpaper Management
-- **Description**: This app configures the desktop wallpaper for Intune-managed devices.
-- **Publisher**: [You might want to put your name here?]
+- **Description**: This app configures the desktop wallpaper for Intune-managed devices and tracks versioning through an environment variable.
+- **Publisher**: (Your organization or personal name)
 
 ### Program
 
-- **Install command**: `powershell.exe -executionpolicy bypass -file ".\Install_Wallpaper.ps1" -theme "Nature"`
-- **Uninstall command**: `powershell.exe -executionpolicy bypass -file ".\Install_Wallpaper.ps1" -theme "Nature" -Uninstall`
+- **Install command**: 
+  ```powershell
+  powershell.exe -executionpolicy bypass -file "Install_Wallpaper.ps1" -version "1.1"
+  ```
+- **Uninstall command**: N/A (Uninstall functionality not included)
 - **Install behavior**: System
 
 ### Detection Rules
 
-- **Rule type**: File
-- **Path**: `%SystemRoot%\Web\Wallpaper`
-- **File or folder**: Nature
-- **Detection method**: File or folder exists
+- **Rule type**: Registry
+- **Key path**: `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment`
+- **Value name**: `WallpaperThemeVersion`
+- **Detection method**: Value equals
+- **Value**: `1.0` (or the version you are deploying)
 
 ### Requirements
 
-- **Operating system architecture**: Select as per your target devices
+- **Operating system architecture**: Select based on your target devices
 - **Minimum operating system**: Windows 10 or later
 
 ### Return Codes
 
-- The standard return codes.
+- Use the standard return codes.
 
 ### Assignments
+
 - Assign the app to the relevant user or device groups as per your organizational policies.
-
-
 
 ## Troubleshooting
 
 - Check the Intune management portal for deployment status.
 - Verify the wallpaper has been applied on a test device.
-- Consult the script logs if available.
+- Review the `log.txt` file created in the script’s execution directory for detailed logging of the deployment process.
 
 ## Additional Resources
 
-- For a deeper understanding of deploying wallpapers as a Win32 app and the rationale behind the script's file placement, refer to the following articles:
+- For more insights on deploying wallpapers as a Win32 app, refer to:
   - [Wallpaper and Lockscreen with Intune and Business Premium | scloud](https://scloud.work/wallpaper-lockscreen-intune-business/)
   - [Manage Desktop Wallpaper with Microsoft Intune - MSEndpointMgr](https://msendpointmgr.com/2021/02/02/manage-desktop-wallpaper-with-microsoft-intune/)
-
