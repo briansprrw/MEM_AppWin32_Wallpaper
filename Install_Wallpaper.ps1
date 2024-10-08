@@ -1,149 +1,191 @@
 <#
 .SYNOPSIS
-Script copies image files to a specified "theme" subdirectory within the Windows wallpaper directory. It can also remove the theme and its associated files if the 'Uninstall' parameter is used.
+This script deploys a wallpaper image and theme to a specified subdirectory
+within the Windows wallpaper directory, sets an environment variable for
+version control, and automatically applies the theme using the registry.
 
 .DESCRIPTION
-The script is designed to be deployed as a Win32 app using Microsoft Intune. It reads all image files from a "Wallpapers" subdirectory, 
-which should be located in the same path as the script, and copies them to a new theme subdirectory within the Windows wallpaper directory.
-If the 'Uninstall' switch is used, it removes the specified theme subdirectory and all its contents.
+This PowerShell script is designed to be deployed via Intune as a Win32
+application. It automates the process of copying a wallpaper image from a
+"Wallpapers" folder (located in the same directory as the script) to a
+subdirectory in the system's wallpaper directory and applies the wallpaper by
+modifying the necessary registry settings.
 
-To package this script as a Win32 app, follow these steps:
-1. Prepare with IntuneWinAppUtil.exe tool.
-    - Place the script and the 'Wallpapers' folder in a directory.
-    - Run IntuneWinAppUtil.exe and specify the source folder, the setup file (the script), and the output folder.
-2. In Intune, add a new Win32 app and upload the generated .intunewin file.
-3. Configure the install and uninstall commands for the app:
-   - Install Command: powershell.exe -ExecutionPolicy Bypass -File "Copy-WallpaperToTheme.ps1" -theme "Nature"
-   - Uninstall Command: powershell.exe -ExecutionPolicy Bypass -File "Copy-WallpaperToTheme.ps1" -theme "Nature" -Uninstall
-6. For detection rules, use the 'Find path or file' option and configure as follows:
-   - Rule type: Path
-   - Path: %SystemRoot%\Web\Wallpaper\Nature
-   - File or folder: (leave this blank to check for the folder's existence)
-   - Detection method: File or folder exists
-   - Associated with a 32-bit app on 64-bit clients: Unchecked
+The script also sets an environment variable for version tracking. It looks for
+common image file types (JPG, PNG, BMP) and uses the first available image if
+"Wallpaper.jpg" is not found. The theme name is determined dynamically based on
+the folder from which the script is being executed. Additionally, all operations
+are logged into a `log.txt` file for easy troubleshooting.
 
-.PARAMETER theme
-The name of the subdirectory within '%SystemRoot%\Web\Wallpaper' where the images will be copied to or removed from.
-
-.PARAMETER Uninstall
-Specifies whether the script should remove the theme subdirectory and its contents (also needs "theme" parameter)
+.PARAMETER version
+Specifies the version of the wallpaper deployment, which will be stored in an
+environment variable for tracking. Defaults to `1.0`.
 
 .EXAMPLE
-.\Copy-WallpaperToTheme.ps1 -theme "Nature"
+powershell.exe -ExecutionPolicy Bypass -File "Install_Wallpaper.ps1" -version "1.1"
 
-This will copy all images from 'Wallpapers' to '%SystemRoot%\Web\Wallpaper\Nature' and set up the theme.
-
-.EXAMPLE
-.\Copy-WallpaperToTheme.ps1 -theme "Nature" -Uninstall
-
-This will remove the 'Nature' theme subdirectory and all its contents from '%SystemRoot%\Web\Wallpaper'.
+This example deploys the wallpaper using the dynamically determined theme name
+and sets the version environment variable to "1.1."
 
 .NOTES
-Please ensure that the "Wallpapers" subdirectory exists and contains image files.
-The script requires administrative privileges to execute.
+- The script looks for images in the following formats: JPG, PNG, BMP. If
+  "Wallpaper.jpg" is not found, it will select the first available image.
+- The environment variable `WallpaperThemeVersion` is set to the provided
+  version for tracking.
+- The theme name is dynamically determined based on the folder name of the
+  script's execution.
+- All major actions are logged in a `log.txt` file located in the script's
+  execution directory.
 
-Last Modified: 2023-Nov-07
-
+.INTUNE USAGE
+- Install command:
+    powershell.exe -ExecutionPolicy Bypass -File "Install_Wallpaper.ps1" -version "1.1"
+  
+- Detection rules:
+    Rule type: Registry
+    Key path: HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment
+    Value name: WallpaperThemeVersion
+    Detection method: Value equals
+    Value: 1.0 (or set to the version you are deploying)
+    Associated with a 32-bit app on 64-bit clients: Unchecked
 #>
-
-# Requires -RunAsAdministrator
 
 # Define parameters
 param (
     [Parameter(Mandatory=$true)]
-    [string]$theme,
-    [switch]$Uninstall
+    [string]$version = "1.0"    # Default version, can be updated as needed
 )
 
+# Define log file path
+$logFilePath = Join-Path -Path $PSScriptRoot -ChildPath "log.txt"
 
-# Tests for adminis priviliges 
-function Test-AdminPrivileges {
-    # Get the current Windows identity
-    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+# Function to write to the log file
+function Write-Log {
+    param (
+        [string]$message
+    )
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logMessage = "$timestamp - $message"
+    Add-Content -Path $logFilePath -Value $logMessage
+}
 
-    # Check if the user is in the Administrators role
-    if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        throw "This script requires administrative privileges. Run it as an administrator."
-    }
-    else {
-        Write-Host "Running with administrative privileges."
+# Function to dynamically determine the theme name based on the script location
+function Get-ThemeName {
+    $scriptPath = $PSScriptRoot
+    $folderName = Split-Path -Leaf $scriptPath
+    Write-Log "Dynamically determined theme name: $folderName"
+    return $folderName
+}
+
+# Function to set an environment variable for version control
+function Set-EnvironmentVariable {
+    param (
+        [string]$variableName, # Name of the environment variable
+        [string]$value         # Value to set for the environment variable
+    )
+
+    try {
+        [Environment]::SetEnvironmentVariable($variableName, $value, [EnvironmentVariableTarget]::Machine)
+        Write-Host "Environment variable '$variableName' set to '$value'."
+        Write-Log "Environment variable '$variableName' set to '$value'."
+    } catch {
+        Write-Log "Failed to set environment variable: $_"
+        Write-Error "Failed to set environment variable: $_"
+        exit 1
     }
 }
 
-# Example usage at the beginning of your script
-try {
-    Test-AdminPrivileges
-    # The rest of your script goes here
-}
-catch {
-    Write-Error $_.Exception.Message
+# Function to find the first available image in the Wallpapers folder
+function Find-Wallpaper {
+    $supportedFormats = @("*.jpg", "*.png", "*.bmp") # Supported file formats
+    foreach ($format in $supportedFormats) {
+        $image = Get-ChildItem -Path (Join-Path -Path $PSScriptRoot -ChildPath "Wallpapers") -Filter $format -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($image) {
+            Write-Log "Found wallpaper file: $($image.FullName)"
+            return $image.FullName
+        }
+    }
+    Write-Log "No supported wallpaper files found (JPG, PNG, BMP)."
+    Write-Error "No supported wallpaper files found (JPG, PNG, BMP)."
     exit 1
 }
 
-
-# Function to copy wallpapers to the theme directory
-function Copy-WallpapersToTheme {
+# Function to copy the wallpaper image to the theme directory
+function Copy-Wallpaper {
     param (
-        [Parameter(Mandatory=$true)]
-        [string]$theme
-    )
-
-    # Define the source and destination paths
-    $sourcePath = Join-Path -Path $PSScriptRoot -ChildPath "Wallpapers"
-    $destPath = Join-Path -Path $env:SystemRoot -ChildPath "Web\Wallpaper\$theme"
-
-    # Check if the source directory exists
-    if (-not (Test-Path -Path $sourcePath)) {
-        Write-Error "Source directory '$sourcePath' does not exist."
-        return
-    }
-
-    # Create the destination directory if it doesn't exist
-    if (-not (Test-Path -Path $destPath)) {
-        New-Item -Path $destPath -ItemType Directory | Out-Null
-    }
-
-    # Copy the image files to the destination directory
-    try {
-        Get-ChildItem -Path $sourcePath -Filter *.jpg | Copy-Item -Destination $destPath -Force
-        Write-Host "Wallpapers copied to '$destPath'."
-    }
-    catch {
-        Write-Error "An error occurred while copying the files: $_"
-    }
-}
-
-# Function to remove wallpapers from the theme directory
-function Remove-WallpapersFromTheme {
-    param (
-        [Parameter(Mandatory=$true)]
-        [string]$theme
+        [string]$theme,      # Name of the theme subdirectory
+        [string]$sourcePath  # Full path to the source image file
     )
 
     # Define the destination path
-    $destPath = Join-Path -Path $env:SystemRoot -ChildPath "Web\Wallpaper\$theme"
+    $destPath = Join-Path -Path $env:SystemRoot -ChildPath "Web\Wallpaper\$theme\$(Split-Path $sourcePath -Leaf)"
 
-    # Check if the destination directory exists
-    if (Test-Path -Path $destPath) {
-        # Remove the destination directory and all contents
-        try {
-            Remove-Item -Path $destPath -Recurse -Force
-            Write-Host "Theme '$theme' and all associated wallpapers have been removed."
-        }
-        catch {
-            Write-Error "An error occurred while removing the theme: $_"
-        }
+    # Check if the destination directory exists, and create it if it doesn't
+    if (-not (Test-Path -Path (Split-Path $destPath -Parent))) {
+        Write-Log "Creating theme directory '$($env:SystemRoot)\Web\Wallpaper\$theme'."
+        New-Item -Path (Split-Path $destPath -Parent) -ItemType Directory | Out-Null
     }
-    else {
-        Write-Host "Theme '$theme' does not exist or has already been removed."
+
+    # Copy the wallpaper to the destination folder
+    try {
+        Copy-Item -Path $sourcePath -Destination $destPath -Force
+        Write-Log "Wallpaper copied successfully to '$destPath'."
+    } catch {
+        Write-Log "An error occurred while copying the wallpaper: $_"
+        Write-Error "An error occurred while copying the wallpaper: $_"
+        exit 1
+    }
+
+    return $destPath
+}
+
+# Function to apply the wallpaper by setting the necessary registry keys
+function Apply-Wallpaper {
+    param (
+        [string]$wallpaperPath # Full path to the wallpaper image
+    )
+
+    try {
+        # Set registry keys to apply the wallpaper
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "Wallpaper" -Value $wallpaperPath
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallpaperStyle" -Value "10" # Fit style
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "TileWallpaper" -Value "0"   # No tiling
+        # Refresh the desktop to apply changes
+        rundll32.exe user32.dll,UpdatePerUserSystemParameters ,1 ,True
+        Write-Log "Wallpaper applied successfully via registry."
+    } catch {
+        Write-Log "Failed to apply the wallpaper via registry: $_"
+        Write-Error "Failed to apply the wallpaper via registry: $_"
+        exit 1
     }
 }
 
 # Main script execution
-if ($Uninstall) {
-    Remove-WallpapersFromTheme -theme $theme
-} else {
-    Copy-WallpapersToTheme -theme $theme
-}
+try {
+    # Start logging
+    Write-Log "Starting wallpaper deployment script."
 
+    # Dynamically determine the theme name
+    $theme = Get-ThemeName
+
+    # Find the first available wallpaper image
+    $wallpaperPath = Find-Wallpaper
+
+    # Copy the wallpaper to the specified theme directory
+    $copiedWallpaperPath = Copy-Wallpaper -theme $theme -sourcePath $wallpaperPath
+
+    # Apply the wallpaper using registry settings
+    Apply-Wallpaper -wallpaperPath $copiedWallpaperPath
+
+    # Set the environment variable to indicate the version of the wallpaper deployment
+    Set-EnvironmentVariable -variableName "WallpaperThemeVersion" -value $version
+
+    Write-Log "Script completed successfully."
+
+    # Exit with code 0 (success)
+    exit 0
+} catch {
+    Write-Log "An error occurred: $_"
+    Write-Error $_.Exception.Message
+    exit 1
+}
